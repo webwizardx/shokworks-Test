@@ -24,10 +24,21 @@ export class UsersService {
     },
   ];
 
+  /**
+   * This method finds all users
+   * @author Jonathan Alvarado
+   * @returns The list of users
+   */
   findAll(): User[] {
     return this.#users;
   }
 
+  /**
+   * This method finds a user by id
+   * @param id - The id of the user
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
   findOne(id: number): User {
     const user = this.#users.find((user) => user.id === id);
     if (!user) {
@@ -36,6 +47,12 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * This method creates a new user
+   * @param createUserDto - The user object
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
   create(createUserDto: CreateUserDto): User {
     const existingUser = this.#users.find((user) => user.email === createUserDto.email);
     if (existingUser) {
@@ -54,6 +71,13 @@ export class UsersService {
     return newUser;
   }
 
+  /**
+   * This method updates a user
+   * @param id - The id of the user
+   * @param updateUserDto - The user object
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
   update(id: number, updateUserDto: UpdateUserDto): User {
     const userIndex = this.#users.findIndex((user) => user.id === id);
     if (userIndex === -1) {
@@ -78,6 +102,12 @@ export class UsersService {
     return updatedUser;
   }
 
+  /**
+   * This method removes a user
+   * @param id - The id of the user
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
   remove(id: number): User {
     const userIndex = this.#users.findIndex((user) => user.id === id);
     if (userIndex === -1) {
