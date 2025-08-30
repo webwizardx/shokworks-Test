@@ -8,6 +8,13 @@ export enum UserRole {
 @Table({
   tableName: 'users',
   timestamps: true,
+  scopes: {
+    withoutPassword: {
+      attributes: {
+        exclude: ['password'],
+      },
+    },
+  },
 })
 export class User extends Model {
   @Column({
@@ -36,6 +43,12 @@ export class User extends Model {
     defaultValue: UserRole.USER,
   })
   declare role: UserRole;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  declare password: string;
 
   @CreatedAt
   declare createdAt: Date;

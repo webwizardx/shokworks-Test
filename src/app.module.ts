@@ -5,6 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { databaseConfig } from './config/database.config';
 import globalConfig from './config/global';
+import { AdminModule } from './modules/admin/admin.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -15,6 +17,8 @@ import { UsersModule } from './modules/users/users.module';
       load: [globalConfig],
     }),
     SequelizeModule.forRoot(databaseConfig),
+    AdminModule,
+    AuthModule,
     UsersModule,
   ],
   controllers: [AppController],

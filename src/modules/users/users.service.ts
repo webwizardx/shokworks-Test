@@ -1,15 +1,23 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
+import * as bcrypt from 'bcryptjs';
+import { GlobalConfig } from 'src/config/global';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
+  #jwtSalt: number;
+
   constructor(
     @InjectModel(User)
     private readonly userModel: typeof User,
-  ) {}
+    private readonly configService: ConfigService<GlobalConfig>,
+  ) {
+    this.#jwtSalt = this.configService.get('jwt.salt', { infer: true }) as number;
+  }
 
   /**
    * This method finds all users
@@ -17,7 +25,7 @@ export class UsersService {
    * @returns The list of users
    */
   async findAll(): Promise<User[]> {
-    return this.userModel.findAll();
+    return this.userModel.scope('withoutPassword').findAll();
   }
 
   /**
@@ -27,9 +35,25 @@ export class UsersService {
    * @returns The user object
    */
   async findOne(id: number): Promise<User> {
-    const user = await this.userModel.findByPk(id);
+    const user = await this.userModel.scope('withoutPassword').findByPk(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
+  /**
+   * This method finds a user by email
+   * @param email - The email of the user
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
+  async findOneByEmail(email: string): Promise<User> {
+    const user = await this.userModel.findOne({
+      where: { email },
+    });
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found`);
     }
     return user;
   }
@@ -47,8 +71,9 @@ export class UsersService {
     if (existingUser) {
       throw new ConflictException(`User with email ${createUserDto.email} already exists`);
     }
+    createUserDto.password = await bcrypt.hash(createUserDto.password, this.#jwtSalt);
 
-    return this.userModel.create({ ...createUserDto });
+    return await this.userModel.scope('withoutPassword').create({ ...createUserDto });
   }
 
   /**
@@ -59,7 +84,7 @@ export class UsersService {
    * @returns The user object
    */
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.userModel.findByPk(id);
+    const user = await this.userModel.scope('withoutPassword').findByPk(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -85,7 +110,7 @@ export class UsersService {
    * @returns The user object
    */
   async remove(id: number): Promise<User> {
-    const user = await this.userModel.findByPk(id);
+    const user = await this.userModel.scope('withoutPassword').findByPk(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
