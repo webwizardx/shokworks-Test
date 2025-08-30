@@ -1,28 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  #users: User[] = [
-    {
-      id: 1,
-      name: 'Admin User',
-      email: 'admin@example.com',
-      role: UserRole.ADMIN,
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01'),
-    },
-    {
-      id: 2,
-      name: 'Regular User',
-      email: 'user@example.com',
-      role: UserRole.USER,
-      createdAt: new Date('2024-01-02'),
-      updatedAt: new Date('2024-01-02'),
-    },
-  ];
+  #users: User[] = [];
+  #jwtSalt: number;
 
   /**
    * This method finds all users
@@ -39,10 +24,24 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  findOne(id: number): User {
+  findOne(id: number): Omit<User, 'password'> {
     const user = this.#users.find((user) => user.id === id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return this.mapUserToResponse(user);
+  }
+
+  /**
+   * This method finds a user by email
+   * @param email - The email of the user
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
+  findOneByEmail(email: string): Omit<User, 'password'> {
+    const user = this.#users.find((user) => user.email === email);
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found`);
     }
     return user;
   }
@@ -53,11 +52,12 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  create(createUserDto: CreateUserDto): User {
+  async create(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
     const existingUser = this.#users.find((user) => user.email === createUserDto.email);
     if (existingUser) {
       throw new ConflictException(`User with email ${createUserDto.email} already exists`);
     }
+    createUserDto.password = await bcrypt.hash(createUserDto.password, this.#jwtSalt);
 
     const newUser: User = {
       id: this.#users.length + 1,
@@ -68,7 +68,7 @@ export class UsersService {
     };
 
     this.#users.push(newUser);
-    return newUser;
+    return this.mapUserToResponse(newUser);
   }
 
   /**
@@ -78,7 +78,7 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  update(id: number, updateUserDto: UpdateUserDto): User {
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<Omit<User, 'password'>> {
     const userIndex = this.#users.findIndex((user) => user.id === id);
     if (userIndex === -1) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -92,6 +92,10 @@ export class UsersService {
       }
     }
 
+    if (updateUserDto.password) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, this.#jwtSalt);
+    }
+
     const updatedUser = {
       ...this.#users[userIndex],
       ...updateUserDto,
@@ -99,7 +103,7 @@ export class UsersService {
     };
 
     this.#users[userIndex] = updatedUser;
-    return updatedUser;
+    return this.mapUserToResponse(updatedUser);
   }
 
   /**
@@ -108,13 +112,24 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  remove(id: number): User {
+  remove(id: number): Omit<User, 'password'> {
     const userIndex = this.#users.findIndex((user) => user.id === id);
     if (userIndex === -1) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
     const [removedUser] = this.#users.splice(userIndex, 1);
-    return removedUser;
+    return this.mapUserToResponse(removedUser);
+  }
+
+  /**
+   * This method maps a user to a response
+   * @param user - The user object
+   * @author Jonathan Alvarado
+   * @returns The user object
+   */
+  mapUserToResponse(user: User): Omit<User, 'password'> {
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 }

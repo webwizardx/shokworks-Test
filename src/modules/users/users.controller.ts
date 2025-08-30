@@ -25,7 +25,7 @@ export class UsersController {
     status: 409,
     description: 'Conflict - User with this email already exists',
   })
-  create(@Body() createUserDto: CreateUserDto): User {
+  create(@Body() createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
     return this.usersService.create(createUserDto);
   }
 
@@ -36,7 +36,7 @@ export class UsersController {
     description: 'List of all users',
     type: [User],
   })
-  findAll(): User[] {
+  findAll(): Omit<User, 'password'>[] {
     return this.usersService.findAll();
   }
 
@@ -52,7 +52,7 @@ export class UsersController {
     status: 404,
     description: 'User not found',
   })
-  findOne(@Param('id', ParseIntPipe) id: number): User {
+  findOne(@Param('id', ParseIntPipe) id: number): Omit<User, 'password'> {
     return this.usersService.findOne(id);
   }
 
@@ -76,7 +76,7 @@ export class UsersController {
     status: 409,
     description: 'Conflict - User with this email already exists',
   })
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateUserDto: UpdateUserDto): User {
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateUserDto: UpdateUserDto): Promise<Omit<User, 'password'>> {
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -92,7 +92,7 @@ export class UsersController {
     status: 404,
     description: 'User not found',
   })
-  remove(@Param('id', ParseIntPipe) id: number): User {
+  remove(@Param('id', ParseIntPipe) id: number): Omit<User, 'password'> {
     return this.usersService.remove(id);
   }
 }

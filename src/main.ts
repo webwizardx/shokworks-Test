@@ -26,6 +26,7 @@ async function bootstrap() {
     .setTitle('Shokworks Technical Assessment API')
     .setDescription('API documentation for the Shokworks backend technical assessment exercises')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

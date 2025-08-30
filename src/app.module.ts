@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './modules/users/users.module';
 import globalConfig from './config/global';
+import { AdminModule } from './modules/admin/admin.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import globalConfig from './config/global';
       isGlobal: true,
       load: [globalConfig],
     }),
+    AdminModule,
+    AuthModule,
     UsersModule,
   ],
   controllers: [AppController],

@@ -8,6 +8,7 @@ export class User {
   name: string;
   email: string;
   role: UserRole;
+  password: string;
   createdAt: Date;
   updatedAt: Date;
 }
