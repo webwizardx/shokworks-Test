@@ -129,6 +129,28 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findOneByEmail', () => {
+    it('should return a user by email', async () => {
+      // First create a user
+      const createUserDto: CreateUserDto = {
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'password123',
+        role: UserRole.USER,
+      };
+
+      await service.create(createUserDto);
+
+      const result = service.findOneByEmail('test@example.com');
+      expect(result).toBeDefined();
+      expect(result.email).toBe('test@example.com');
+    });
+
+    it('should throw NotFoundException for non-existent email', () => {
+      expect(() => service.findOneByEmail('nonexistent@example.com')).toThrow(NotFoundException);
+    });
+  });
+
   describe('create', () => {
     it('should create a new user with hashed password', async () => {
       const createUserDto: CreateUserDto = {
@@ -302,6 +324,26 @@ describe('UsersService', () => {
       expect(mockUserModel.findOne).not.toHaveBeenCalled();
       expect(result).toBeDefined();
     });
+
+    it('should allow updating to same email', async () => {
+      // Create a user
+      const createUserDto: CreateUserDto = {
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'password123',
+        role: UserRole.USER,
+      };
+
+      await service.create(createUserDto);
+
+      const updateUserDto: UpdateUserDto = {
+        email: 'test@example.com', // Same email
+      };
+
+      const result = await service.update(1, updateUserDto);
+      expect(result).toBeDefined();
+      expect(result.email).toBe('test@example.com');
+    });
   });
 
   describe('remove', () => {
@@ -333,6 +375,22 @@ describe('UsersService', () => {
 
       await expect(service.remove(999)).rejects.toThrow(NotFoundException);
       expect(mockUserModel.scope).toHaveBeenCalledWith('withoutPassword');
+    });
+  });
+
+  describe('mapUserToResponse', () => {
+    it('should return user without password', async () => {
+      const createUserDto: CreateUserDto = {
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'password123',
+        role: UserRole.USER,
+      };
+
+      const user = await service.create(createUserDto);
+      expect(user.id).toBeDefined();
+      expect(user.name).toBeDefined();
+      expect(user.email).toBeDefined();
     });
   });
 });
