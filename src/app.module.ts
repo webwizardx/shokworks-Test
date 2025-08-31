@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import globalConfig from './config/global';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     AdminModule,
     AuthModule,
+    UploadModule,
     UsersModule,
   ],
   controllers: [AppController],
