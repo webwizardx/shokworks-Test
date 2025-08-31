@@ -1,5 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { GlobalConfig } from 'src/config/global';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
@@ -7,7 +9,11 @@ import { User, UserRole } from './entities/user.entity';
 @Injectable()
 export class UsersService {
   #users: User[] = [];
-  #jwtSalt: number;
+  #jwtSalt: number = 10;
+
+  constructor(private readonly configService: ConfigService<GlobalConfig>) {
+    this.#jwtSalt = this.configService.get('jwt.salt', { infer: true }) as number;
+  }
 
   /**
    * This method finds all users
@@ -38,7 +44,7 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  findOneByEmail(email: string): Omit<User, 'password'> {
+  findOneByEmail(email: string): User {
     const user = this.#users.find((user) => user.email === email);
     if (!user) {
       throw new NotFoundException(`User with email ${email} not found`);
