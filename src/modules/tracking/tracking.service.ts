@@ -1,23 +1,25 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize';
 import { TrackingStatsDto } from './dto/tracking-stats.dto';
 import { AccessLog } from './entities/access-log.entity';
 
 @Injectable()
 export class TrackingService {
-  #accessLogs: AccessLog[] = [];
+  constructor(
+    @InjectModel(AccessLog)
+    private readonly accessLogModel: typeof AccessLog,
+  ) {}
 
   /**
    * Records an access from a user
    * @param username - The username extracted from JWT
    * @author Jonathan Alvarado
    */
-  recordAccess(username: string): void {
-    const accessLog: AccessLog = {
+  async recordAccess(username: string): Promise<AccessLog> {
+    return await this.accessLogModel.create({
       username,
-      timestamp: new Date(),
-    };
-
-    this.#accessLogs.push(accessLog);
+    });
   }
 
   /**
@@ -25,14 +27,21 @@ export class TrackingService {
    * @author Jonathan Alvarado
    * @returns Object containing total accesses, unique users, and last user
    */
-  getStats(): TrackingStatsDto {
-    const totalAccesses = this.#accessLogs.length;
+  async getStats(): Promise<TrackingStatsDto> {
+    const totalAccesses = await this.accessLogModel.count();
 
-    // Get unique users using Set
-    const uniqueUsers = [...new Set(this.#accessLogs.map((log) => log.username))];
+    const uniqueUsersQuery = await this.accessLogModel.findAll({
+      attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('username')), 'username']],
+    });
+
+    const uniqueUsers = uniqueUsersQuery.map((log) => log.username);
 
     // Get the last user who accessed
-    const lastUser = this.#accessLogs.length > 0 ? this.#accessLogs[this.#accessLogs.length - 1].username : null;
+    const lastAccess = await this.accessLogModel.findOne({
+      order: [['timestamp', 'DESC']],
+      attributes: ['username'],
+    });
+    const lastUser = lastAccess ? lastAccess.username : null;
 
     return {
       totalAccesses,
@@ -46,15 +55,20 @@ export class TrackingService {
    * @author Jonathan Alvarado
    * @returns Array of all access logs
    */
-  getAllAccessLogs(): AccessLog[] {
-    return [...this.#accessLogs];
+  async getAllAccessLogs(): Promise<AccessLog[]> {
+    return await this.accessLogModel.findAll({
+      order: [['timestamp', 'DESC']],
+    });
   }
 
   /**
    * Clears all access logs (for testing purposes)
    * @author Jonathan Alvarado
    */
-  clearAccessLogs(): void {
-    this.#accessLogs = [];
+  async clearAccessLogs(): Promise<void> {
+    await this.accessLogModel.destroy({
+      where: {},
+      truncate: true,
+    });
   }
 }

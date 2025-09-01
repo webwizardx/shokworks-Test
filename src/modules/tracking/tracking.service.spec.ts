@@ -1,15 +1,40 @@
+import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
+import { AccessLog } from './entities/access-log.entity';
 import { TrackingService } from './tracking.service';
 
 describe('TrackingService', () => {
   let service: TrackingService;
+  let accessLogModel: typeof AccessLog;
+
+  const mockAccessLogModel = {
+    create: jest.fn(),
+    count: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    destroy: jest.fn(),
+    sequelize: {
+      fn: jest.fn(),
+      col: jest.fn(),
+    },
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TrackingService],
+      providers: [
+        TrackingService,
+        {
+          provide: getModelToken(AccessLog),
+          useValue: mockAccessLogModel,
+        },
+      ],
     }).compile();
 
     service = module.get<TrackingService>(TrackingService);
+    accessLogModel = module.get<typeof AccessLog>(getModelToken(AccessLog));
+
+    // Reset mocks
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -17,51 +42,57 @@ describe('TrackingService', () => {
   });
 
   describe('recordAccess', () => {
-    it('should record an access with username and timestamp', () => {
+    it('should record an access with username and timestamp', async () => {
       const username = 'testuser';
-      const beforeRecord = new Date();
+      const mockAccessLog = {
+        id: 1,
+        username,
+        timestamp: new Date(),
+      };
 
-      service.recordAccess(username);
+      mockAccessLogModel.create.mockResolvedValue(mockAccessLog);
 
-      const logs = service.getAllAccessLogs();
-      expect(logs).toHaveLength(1);
-      expect(logs[0].username).toBe(username);
-      expect(logs[0].timestamp).toBeInstanceOf(Date);
-      expect(logs[0].timestamp.getTime()).toBeGreaterThanOrEqual(beforeRecord.getTime());
+      const result = await service.recordAccess(username);
+
+      expect(mockAccessLogModel.create).toHaveBeenCalledWith({
+        username,
+      });
+      expect(result).toEqual(mockAccessLog);
     });
 
-    it('should record multiple accesses in order', () => {
+    it('should record multiple accesses in order', async () => {
       const usernames = ['user1', 'user2', 'user3'];
+      const mockAccessLogs = usernames.map((username, index) => ({
+        id: index + 1,
+        username,
+        timestamp: new Date(),
+      }));
 
-      usernames.forEach((username) => {
-        service.recordAccess(username);
-      });
+      mockAccessLogModel.create
+        .mockResolvedValueOnce(mockAccessLogs[0])
+        .mockResolvedValueOnce(mockAccessLogs[1])
+        .mockResolvedValueOnce(mockAccessLogs[2]);
 
-      const logs = service.getAllAccessLogs();
-      expect(logs).toHaveLength(3);
-      logs.forEach((log, index) => {
-        expect(log.username).toBe(usernames[index]);
-      });
-    });
+      for (const username of usernames) {
+        await service.recordAccess(username);
+      }
 
-    it('should record same user multiple times', () => {
-      const username = 'repeateduser';
-
-      service.recordAccess(username);
-      service.recordAccess(username);
-      service.recordAccess(username);
-
-      const logs = service.getAllAccessLogs();
-      expect(logs).toHaveLength(3);
-      logs.forEach((log) => {
-        expect(log.username).toBe(username);
+      expect(mockAccessLogModel.create).toHaveBeenCalledTimes(3);
+      usernames.forEach((username, index) => {
+        expect(mockAccessLogModel.create).toHaveBeenNthCalledWith(index + 1, {
+          username,
+        });
       });
     });
   });
 
   describe('getStats', () => {
-    it('should return empty stats when no accesses recorded', () => {
-      const stats = service.getStats();
+    it('should return empty stats when no accesses recorded', async () => {
+      mockAccessLogModel.count.mockResolvedValue(0);
+      mockAccessLogModel.findAll.mockResolvedValue([]);
+      mockAccessLogModel.findOne.mockResolvedValue(null);
+
+      const stats = await service.getStats();
 
       expect(stats).toEqual({
         totalAccesses: 0,
@@ -70,107 +101,86 @@ describe('TrackingService', () => {
       });
     });
 
-    it('should return correct stats for single access', () => {
+    it('should return correct stats for single access', async () => {
       const username = 'singleuser';
-      service.recordAccess(username);
+      mockAccessLogModel.count.mockResolvedValue(1);
+      mockAccessLogModel.findAll.mockResolvedValue([{ username }]);
+      mockAccessLogModel.findOne.mockResolvedValue({ username });
 
-      const stats = service.getStats();
+      const stats = await service.getStats();
 
       expect(stats.totalAccesses).toBe(1);
       expect(stats.uniqueUsers).toEqual([username]);
       expect(stats.lastUser).toBe(username);
     });
 
-    it('should return correct stats for multiple unique users', () => {
+    it('should return correct stats for multiple unique users', async () => {
       const users = ['user1', 'user2', 'user3'];
-      users.forEach((user) => service.recordAccess(user));
+      mockAccessLogModel.count.mockResolvedValue(3);
+      mockAccessLogModel.findAll.mockResolvedValue(users.map((username) => ({ username })));
+      mockAccessLogModel.findOne.mockResolvedValue({ username: 'user3' });
 
-      const stats = service.getStats();
+      const stats = await service.getStats();
 
       expect(stats.totalAccesses).toBe(3);
       expect(stats.uniqueUsers).toEqual(users);
       expect(stats.lastUser).toBe('user3');
     });
 
-    it('should return correct stats for repeated users', () => {
-      // user1, user2, user1, user3, user2
-      const accessSequence = ['user1', 'user2', 'user1', 'user3', 'user2'];
-      accessSequence.forEach((user) => service.recordAccess(user));
+    it('should return correct stats for repeated users', async () => {
+      const uniqueUsers = ['user1', 'user2', 'user3'];
+      mockAccessLogModel.count.mockResolvedValue(5);
+      mockAccessLogModel.findAll.mockResolvedValue(uniqueUsers.map((username) => ({ username })));
+      mockAccessLogModel.findOne.mockResolvedValue({ username: 'user2' });
 
-      const stats = service.getStats();
+      const stats = await service.getStats();
 
       expect(stats.totalAccesses).toBe(5);
-      expect(stats.uniqueUsers).toEqual(['user1', 'user2', 'user3']);
+      expect(stats.uniqueUsers).toEqual(uniqueUsers);
       expect(stats.lastUser).toBe('user2');
-    });
-
-    it('should maintain order of unique users based on first appearance', () => {
-      // user2, user1, user3, user1, user2
-      const accessSequence = ['user2', 'user1', 'user3', 'user1', 'user2'];
-      accessSequence.forEach((user) => service.recordAccess(user));
-
-      const stats = service.getStats();
-
-      expect(stats.uniqueUsers).toEqual(['user2', 'user1', 'user3']);
     });
   });
 
   describe('getAllAccessLogs', () => {
-    it('should return empty array initially', () => {
-      const logs = service.getAllAccessLogs();
+    it('should return empty array initially', async () => {
+      mockAccessLogModel.findAll.mockResolvedValue([]);
+
+      const logs = await service.getAllAccessLogs();
 
       expect(logs).toEqual([]);
-    });
-
-    it('should return all recorded access logs', () => {
-      const usernames = ['user1', 'user2', 'user1'];
-      usernames.forEach((user) => service.recordAccess(user));
-
-      const logs = service.getAllAccessLogs();
-
-      expect(logs).toHaveLength(3);
-      logs.forEach((log, index) => {
-        expect(log.username).toBe(usernames[index]);
-        expect(log.timestamp).toBeInstanceOf(Date);
+      expect(mockAccessLogModel.findAll).toHaveBeenCalledWith({
+        order: [['timestamp', 'DESC']],
       });
     });
 
-    it('should return a copy of the logs array', () => {
-      service.recordAccess('testuser');
-      const logs1 = service.getAllAccessLogs();
-      const logs2 = service.getAllAccessLogs();
+    it('should return all recorded access logs', async () => {
+      const mockLogs = [
+        { id: 1, username: 'user1', timestamp: new Date() },
+        { id: 2, username: 'user2', timestamp: new Date() },
+        { id: 3, username: 'user1', timestamp: new Date() },
+      ];
 
-      expect(logs1).not.toBe(logs2); // Different array references
-      expect(logs1).toEqual(logs2); // Same content
+      mockAccessLogModel.findAll.mockResolvedValue(mockLogs);
+
+      const logs = await service.getAllAccessLogs();
+
+      expect(logs).toEqual(mockLogs);
+      expect(mockAccessLogModel.findAll).toHaveBeenCalledWith({
+        order: [['timestamp', 'DESC']],
+      });
     });
   });
 
   describe('clearAccessLogs', () => {
-    it('should clear all access logs', () => {
-      service.recordAccess('user1');
-      service.recordAccess('user2');
+    it('should clear all access logs', async () => {
+      mockAccessLogModel.destroy.mockResolvedValue(undefined);
 
-      service.clearAccessLogs();
+      await service.clearAccessLogs();
 
-      const logs = service.getAllAccessLogs();
-      const stats = service.getStats();
-
-      expect(logs).toEqual([]);
-      expect(stats.totalAccesses).toBe(0);
-      expect(stats.uniqueUsers).toEqual([]);
-      expect(stats.lastUser).toBe(null);
-    });
-
-    it('should allow recording new accesses after clearing', () => {
-      service.recordAccess('olduser');
-      service.clearAccessLogs();
-      service.recordAccess('newuser');
-
-      const stats = service.getStats();
-
-      expect(stats.totalAccesses).toBe(1);
-      expect(stats.uniqueUsers).toEqual(['newuser']);
-      expect(stats.lastUser).toBe('newuser');
+      expect(mockAccessLogModel.destroy).toHaveBeenCalledWith({
+        where: {},
+        truncate: true,
+      });
     });
   });
 });

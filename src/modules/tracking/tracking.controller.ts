@@ -23,16 +23,16 @@ export class TrackingController {
     status: 403,
     description: 'Forbidden - Invalid or missing token',
   })
-  trackAccess(@Request() req): TrackAccessResponseDto {
+  async trackAccess(@Request() req): Promise<TrackAccessResponseDto> {
     const { name: username } = req.user;
 
     // Record the access
-    this.trackingService.recordAccess(username);
+    const accessLog = await this.trackingService.recordAccess(username);
 
     return {
       message: 'Access tracked successfully',
       username,
-      timestamp: new Date().toISOString(),
+      timestamp: accessLog.timestamp.toISOString(),
     };
   }
 
@@ -43,7 +43,7 @@ export class TrackingController {
     description: 'Tracking statistics retrieved successfully',
     type: TrackingStatsDto,
   })
-  getStats(): TrackingStatsDto {
-    return this.trackingService.getStats();
+  async getStats(): Promise<TrackingStatsDto> {
+    return await this.trackingService.getStats();
   }
 }
