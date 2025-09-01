@@ -42,6 +42,8 @@ The application uses SQLite with Sequelize ORM:
 Create a `.env` file:
 
 ```env
+JWT_SALT=10
+JWT_SECRET=your-secret-key
 NODE_ENV=development
 PORT=3000
 ```
