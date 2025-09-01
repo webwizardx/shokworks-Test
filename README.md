@@ -1,98 +1,126 @@
-# Shokworks Technical Assessment - Backend
+# Backend Technical Assessment
 
-Este proyecto contiene los 5 ejercicios prácticos del test técnico de backend para Shokworks, desarrollado con NestJS.
+A NestJS application with SQLite database using Sequelize ORM, containerized with Docker.
 
-## 📋 Requisitos Previos
+## Features
 
-- Node.js (versión 20 o superior)
-- npm o yarn
-- Git
+- **NestJS Framework**: Modern Node.js framework with TypeScript
+- **SQLite Database**: Lightweight, file-based database
+- **Sequelize ORM**: Type-safe database operations
+- **Docker Support**: Easy containerization and deployment
+- **Swagger Documentation**: API documentation at `/api`
+- **User Management**: CRUD operations for users
 
-## 🚀 Instalación y Configuración
+## Prerequisites
 
-### 1. Clonar el repositorio
+- Node.js 20+
+- Docker & Docker Compose (optional)
+
+## Quick Start with Docker
 
 ```bash
-git clone <tu-repositorio-url>
-cd backend-technical-assessment
+# Build and start the application
+docker-compose up --build
+
+# The API will be available at http://localhost:3000
+# Swagger documentation at http://localhost:3000/api
 ```
 
-### 2. Instalar dependencias
+## Local Development
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### 3. Configurar variables de entorno (opcional)
-
-Crea un archivo `.env` en la raíz del proyecto si necesitas configuraciones específicas:
-
-```bash
-PORT=3000
-NODE_ENV=development
-```
-
-## 🏃‍♂️ Ejecutar el Proyecto
-
-### Desarrollo
-
-```bash
+# Start development server
 npm run start:dev
+
+# Seed the database with initial data
+npm run seed
+
+# Reset database (delete and recreate)
+npm run db:reset
 ```
 
-### Producción
+## Database
+
+The application uses SQLite with Sequelize ORM:
+
+- **Location**: `database/app.sqlite`
+- **Auto-sync**: Enabled in development
+- **Migrations**: Not configured (using `synchronize: true`)
+
+### Models
+
+- **User**: `id`, `name`, `email`, `password`, `isActive`, `createdAt`, `updatedAt`
+
+## API Endpoints
+
+### Users
+
+- `GET /users` - Get all users
+- `GET /users/:id` - Get user by ID
+- `POST /users` - Create new user
+- `PUT /users/:id` - Update user
+- `DELETE /users/:id` - Delete user
+
+## Environment Variables
+
+Create a `.env` file:
+
+```env
+NODE_ENV=development
+PORT=3000
+```
+
+## Docker Commands
 
 ```bash
-npm run build
-npm run start:prod
+# Build image
+docker build -t backend-assessment .
+
+# Run container
+docker run -p 3000:3000 -v $(pwd)/database:/app/database backend-assessment
+
+# Development with volumes
+docker-compose up --build
 ```
 
-### Solo compilación
+## Scripts
 
-```bash
-npm run build
+- `npm run start:dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start:prod` - Start production server
+- `npm run seed` - Seed database with initial data
+- `npm run db:reset` - Reset database
+- `npm run test` - Run tests
+- `npm run lint` - Lint code
+
+## Project Structure
+
+```
+src/
+├── config/
+│   ├── database.config.ts    # Sequelize configuration
+│   └── global.ts
+├── modules/
+│   └── users/
+│       ├── entities/
+│       │   └── user.entity.ts
+│       ├── dto/
+│       │   ├── create-user.dto.ts
+│       │   └── update-user.dto.ts
+│       ├── users.controller.ts
+│       ├── users.service.ts
+│       └── users.module.ts
+├── scripts/
+│   └── seed.ts              # Database seeding
+└── app.module.ts
 ```
 
-## 📚 Documentación de la API
+## Development Notes
 
-Una vez que el servidor esté ejecutándose, puedes acceder a la documentación de Swagger en:
-
-**http://localhost:3000/api**
-
-## 🧪 Testing
-
-### Ejecutar tests unitarios
-
-```bash
-npm run test
-```
-
-### Ejecutar tests e2e
-
-```bash
-npm run test:e2e
-```
-
-### Ejecutar tests con coverage
-
-```bash
-npm run test:cov
-```
-
-## 🔧 Scripts Disponibles
-
-- `npm run start` - Inicia el servidor en modo producción
-- `npm run start:dev` - Inicia el servidor en modo desarrollo con hot reload
-- `npm run build` - Compila el proyecto TypeScript
-- `npm run test` - Ejecuta tests unitarios
-- `npm run test:e2e` - Ejecuta tests end-to-end
-- `npm run test:cov` - Ejecuta tests con reporte de cobertura
-- `npm run lint` - Ejecuta el linter
-- `npm run lint:fix` - Ejecuta el linter y corrige errores automáticamente
-
-## 📝 Notas Importantes
-
-- El proyecto incluye Swagger para documentación automática de la API
-- Se han configurado validaciones globales con `class-validator`
-- CORS está habilitado para desarrollo
-- El proyecto sigue las mejores prácticas de NestJS
+- Database file is created automatically on first run
+- Hot reload enabled in development mode
+- SQLite database is persisted in Docker volumes
+- Sequelize logging enabled in development

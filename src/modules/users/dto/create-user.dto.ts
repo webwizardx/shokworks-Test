@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PickType } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator';
 import { User, UserRole } from '../entities/user.entity';
 
 export class CreateUserDto extends PickType(User, ['name', 'email']) {
@@ -26,6 +26,5 @@ export class CreateUserDto extends PickType(User, ['name', 'email']) {
     default: UserRole.USER,
   })
   @IsEnum(UserRole)
-  @IsOptional()
-  role?: UserRole = UserRole.USER;
+  role: UserRole = UserRole.USER;
 }
