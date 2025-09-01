@@ -6,7 +6,7 @@ import { TrackingStatsDto } from './dto/tracking-stats.dto';
 import { TrackingService } from './tracking.service';
 
 @ApiTags('Tracking')
-@Controller('tracking')
+@Controller()
 export class TrackingController {
   constructor(private readonly trackingService: TrackingService) {}
 
