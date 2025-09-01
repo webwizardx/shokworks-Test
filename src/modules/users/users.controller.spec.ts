@@ -52,10 +52,6 @@ describe('UsersController', () => {
     jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
@@ -106,7 +102,6 @@ describe('UsersController', () => {
       expect(service.findAll).toHaveBeenCalled();
       expect(result).toEqual(mockUsers);
       expect(Array.isArray(result)).toBe(true);
-      expect(result).toEqual(mockUsers);
     });
   });
 

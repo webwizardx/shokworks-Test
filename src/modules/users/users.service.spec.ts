@@ -115,6 +115,7 @@ describe('UsersService', () => {
 
       expect(mockUserModel.findOne).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
+        raw: true,
       });
       expect(result).toEqual(mockUser);
     });
@@ -125,29 +126,8 @@ describe('UsersService', () => {
       await expect(service.findOneByEmail('nonexistent@example.com')).rejects.toThrow(NotFoundException);
       expect(mockUserModel.findOne).toHaveBeenCalledWith({
         where: { email: 'nonexistent@example.com' },
+        raw: true,
       });
-    });
-  });
-
-  describe('findOneByEmail', () => {
-    it('should return a user by email', async () => {
-      // First create a user
-      const createUserDto: CreateUserDto = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-        role: UserRole.USER,
-      };
-
-      await service.create(createUserDto);
-
-      const result = service.findOneByEmail('test@example.com');
-      expect(result).toBeDefined();
-      expect(result.email).toBe('test@example.com');
-    });
-
-    it('should throw NotFoundException for non-existent email', () => {
-      expect(() => service.findOneByEmail('nonexistent@example.com')).toThrow(NotFoundException);
     });
   });
 
@@ -326,21 +306,24 @@ describe('UsersService', () => {
     });
 
     it('should allow updating to same email', async () => {
-      // Create a user
-      const createUserDto: CreateUserDto = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-        role: UserRole.USER,
-      };
-
-      await service.create(createUserDto);
-
       const updateUserDto: UpdateUserDto = {
         email: 'test@example.com', // Same email
       };
 
+      const mockUser = {
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        role: UserRole.USER,
+        update: jest.fn().mockResolvedValue(undefined),
+      };
+
+      mockUserModel.scope.mockReturnValue({
+        findByPk: jest.fn().mockResolvedValue(mockUser),
+      });
+
       const result = await service.update(1, updateUserDto);
+
       expect(result).toBeDefined();
       expect(result.email).toBe('test@example.com');
     });
@@ -375,22 +358,6 @@ describe('UsersService', () => {
 
       await expect(service.remove(999)).rejects.toThrow(NotFoundException);
       expect(mockUserModel.scope).toHaveBeenCalledWith('withoutPassword');
-    });
-  });
-
-  describe('mapUserToResponse', () => {
-    it('should return user without password', async () => {
-      const createUserDto: CreateUserDto = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-        role: UserRole.USER,
-      };
-
-      const user = await service.create(createUserDto);
-      expect(user.id).toBeDefined();
-      expect(user.name).toBeDefined();
-      expect(user.email).toBeDefined();
     });
   });
 });

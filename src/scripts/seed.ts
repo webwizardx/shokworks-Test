@@ -1,24 +1,34 @@
 import { NestFactory } from '@nestjs/core';
+import { getConnectionToken } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import { AppModule } from '../app.module';
 import { UserRole } from '../modules/users/entities/user.entity';
 import { UsersService } from '../modules/users/users.service';
 
 async function seed() {
+  process.env.NODE_ENV = 'development';
+
   const app = await NestFactory.createApplicationContext(AppModule);
+  const sequelize = app.get<Sequelize>(getConnectionToken());
   const usersService = app.get(UsersService);
 
   try {
-    // Create initial users
+    console.log('🔄 Syncing database...');
+    await sequelize.sync({ force: true });
+    console.log('✅ Database synced successfully');
+
     const users = [
       {
         name: 'Admin User',
         email: 'jalvarado@shokworks.com',
         role: UserRole.ADMIN,
+        password: 'password123',
       },
       {
         name: 'Regular User',
         email: 'user@shokworks.com',
         role: UserRole.USER,
+        password: 'password123',
       },
     ];
 
