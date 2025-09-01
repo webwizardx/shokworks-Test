@@ -2,7 +2,6 @@ import { BadRequestException } from '@nestjs/common';
 import { ApiProperty, PickType } from '@nestjs/swagger';
 import { plainToInstance, Transform } from 'class-transformer';
 import { IsArray, IsNotEmpty, IsString, MinLength, ValidateNested } from 'class-validator';
-import { HasMimeType, IsFile } from 'nestjs-form-data';
 
 export class ImageMetadataDto {
   @ApiProperty({
@@ -31,8 +30,6 @@ export class CreateImageUploadDto {
     format: 'binary',
     description: 'Image file (jpg, png)',
   })
-  @IsFile()
-  @HasMimeType(['image/jpg', 'image/png'])
   image: Express.Multer.File;
 
   @ApiProperty({

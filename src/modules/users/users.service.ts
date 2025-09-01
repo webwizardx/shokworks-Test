@@ -1,17 +1,21 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcryptjs';
 import { GlobalConfig } from 'src/config/global';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User, UserRole } from './entities/user.entity';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  #users: User[] = [];
-  #jwtSalt: number = 10;
+  #jwtSalt: number;
 
-  constructor(private readonly configService: ConfigService<GlobalConfig>) {
+  constructor(
+    @InjectModel(User)
+    private readonly userModel: typeof User,
+    private readonly configService: ConfigService<GlobalConfig>,
+  ) {
     this.#jwtSalt = this.configService.get('jwt.salt', { infer: true }) as number;
   }
 
@@ -20,8 +24,8 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The list of users
    */
-  findAll(): User[] {
-    return this.#users;
+  async findAll(): Promise<User[]> {
+    return this.userModel.scope('withoutPassword').findAll();
   }
 
   /**
@@ -30,12 +34,12 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  findOne(id: number): Omit<User, 'password'> {
-    const user = this.#users.find((user) => user.id === id);
+  async findOne(id: number): Promise<User> {
+    const user = await this.userModel.scope('withoutPassword').findByPk(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return this.mapUserToResponse(user);
+    return user;
   }
 
   /**
@@ -44,8 +48,11 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  findOneByEmail(email: string): User {
-    const user = this.#users.find((user) => user.email === email);
+  async findOneByEmail(email: string): Promise<User> {
+    const user = await this.userModel.findOne({
+      where: { email },
+      raw: true,
+    });
     if (!user) {
       throw new NotFoundException(`User with email ${email} not found`);
     }
@@ -58,23 +65,16 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  async create(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
-    const existingUser = this.#users.find((user) => user.email === createUserDto.email);
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const existingUser = await this.userModel.findOne({
+      where: { email: createUserDto.email },
+    });
     if (existingUser) {
       throw new ConflictException(`User with email ${createUserDto.email} already exists`);
     }
     createUserDto.password = await bcrypt.hash(createUserDto.password, this.#jwtSalt);
 
-    const newUser: User = {
-      id: this.#users.length + 1,
-      ...createUserDto,
-      role: createUserDto.role || UserRole.USER,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    this.#users.push(newUser);
-    return this.mapUserToResponse(newUser);
+    return await this.userModel.scope('withoutPassword').create({ ...createUserDto });
   }
 
   /**
@@ -84,32 +84,24 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<Omit<User, 'password'>> {
-    const userIndex = this.#users.findIndex((user) => user.id === id);
-    if (userIndex === -1) {
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+    const user = await this.userModel.scope('withoutPassword').findByPk(id);
+    if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
     // Check if email is being updated and if it already exists
-    if (updateUserDto.email && updateUserDto.email !== this.#users[userIndex].email) {
-      const existingUser = this.#users.find((user) => user.email === updateUserDto.email);
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
+      const existingUser = await this.userModel.findOne({
+        where: { email: updateUserDto.email },
+      });
       if (existingUser) {
         throw new ConflictException(`User with email ${updateUserDto.email} already exists`);
       }
     }
 
-    if (updateUserDto.password) {
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, this.#jwtSalt);
-    }
-
-    const updatedUser = {
-      ...this.#users[userIndex],
-      ...updateUserDto,
-      updatedAt: new Date(),
-    };
-
-    this.#users[userIndex] = updatedUser;
-    return this.mapUserToResponse(updatedUser);
+    await user.update(updateUserDto);
+    return user;
   }
 
   /**
@@ -118,24 +110,13 @@ export class UsersService {
    * @author Jonathan Alvarado
    * @returns The user object
    */
-  remove(id: number): Omit<User, 'password'> {
-    const userIndex = this.#users.findIndex((user) => user.id === id);
-    if (userIndex === -1) {
+  async remove(id: number): Promise<User> {
+    const user = await this.userModel.scope('withoutPassword').findByPk(id);
+    if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    const [removedUser] = this.#users.splice(userIndex, 1);
-    return this.mapUserToResponse(removedUser);
-  }
-
-  /**
-   * This method maps a user to a response
-   * @param user - The user object
-   * @author Jonathan Alvarado
-   * @returns The user object
-   */
-  mapUserToResponse(user: User): Omit<User, 'password'> {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    await user.destroy();
+    return user;
   }
 }
